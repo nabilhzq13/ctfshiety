@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTF — Capture The Flag</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05080f;
+  --bg2:#0a1120;
+  --panel:#0c1526;
+  --panel2:#101c33;
+  --line:#1c2c4a;
+  --green:#00ff9c;
+  --cyan:#00d4ff;
+  --blue:#2f7bff;
+  --text:#e8f2ff;
+  --muted:#8aa0bf;
+  --red:#ff5c7a;
+  --mono:'JetBrains Mono',monospace;
+  --disp:'Chakra Petch',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--disp)}
+::selection{background:var(--green);color:#000}
+
+/* ---------- atmosphere ---------- */
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(1200px 700px at 75% -10%, rgba(0,212,255,.06), transparent 60%),
+    radial-gradient(1000px 600px at 10% 110%, rgba(0,255,156,.05), transparent 60%);}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35;
+  background-image:
+    linear-gradient(rgba(60,100,160,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(60,100,160,.06) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse at 50% 40%,black 30%,transparent 85%);}
+.scan{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.12) 3px 4px)}
+
+/* ---------- deck ---------- */
+.deck{position:relative;z-index:1;height:100vh}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:3.2vh 4vw 8.5vh}
+.slide.active{display:flex}
+.slide .rv{opacity:0;transform:translateY(22px)}
+.slide.active .rv{animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+.slide.active [data-d="1"]{animation-delay:.05s}
+.slide.active [data-d="2"]{animation-delay:.15s}
+.slide.active [data-d="3"]{animation-delay:.25s}
+.slide.active [data-d="4"]{animation-delay:.35s}
+.slide.active [data-d="5"]{animation-delay:.45s}
+.slide.active [data-d="6"]{animation-delay:.55s}
+.slide.active [data-d="7"]{animation-delay:.65s}
+.slide.active [data-d="8"]{animation-delay:.75s}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* ---------- shared chrome ---------- */
+.topbar{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:1.4vh;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:2.2vh}
+.topbar .tag{color:var(--green)}
+.topbar .tag::before{content:"▍";margin-right:.6em;color:var(--cyan)}
+h2.title{font-size:5.6vh;font-weight:700;letter-spacing:.02em;line-height:1.05;margin-bottom:1vh}
+h2.title .hl{color:var(--green)}
+.sub{font-family:var(--mono);color:var(--muted);font-size:1.8vh;margin-bottom:3vh}
+.body{flex:1;display:flex;min-height:0}
+
+.mono{font-family:var(--mono)}
+.g{color:var(--green)} .c{color:var(--cyan)} .r{color:var(--red)} .y{color:#ffd166}
+
+/* terminal window */
+.term{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.5),0 0 0 1px rgba(0,255,156,.04) inset;transition:border-color .25s, box-shadow .25s}
+.term-bar{display:flex;align-items:center;gap:.5em;padding:.9vh 1.2em;background:var(--panel2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:1.5vh;color:var(--muted)}
+.term-bar i{width:1.1vh;height:1.1vh;border-radius:50%;display:inline-block}
+.term-bar i:nth-child(1){background:#ff5f57}.term-bar i:nth-child(2){background:#febc2e}.term-bar i:nth-child(3){background:#28c840}
+.term-bar span{margin-left:.6em;letter-spacing:.08em}
+.term-body{padding:1.8vh 1.4em;font-family:var(--mono);font-size:2vh;line-height:1.75;white-space:pre-wrap}
+.cursor{display:inline-block;width:.55em;height:1em;background:var(--green);vertical-align:-.12em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* card */
+.card{background:linear-gradient(160deg,var(--panel),#0a1322);border:1px solid var(--line);border-radius:12px;padding:2.4vh 1.4vw;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),var(--cyan));opacity:.7}
+.card h3{font-size:2.3vh;margin:.8vh 0 .6vh;letter-spacing:.03em}
+.card p,.card li{font-size:1.8vh;color:var(--muted);line-height:1.55}
+.card ul{list-style:none}
+.card li::before{content:"▸ ";color:var(--cyan)}
+
+/* icons */
+.ic{width:4.2vh;height:4.2vh;flex:none}
+.ic svg{width:100%;height:100%;stroke:var(--green);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ic.cy svg{stroke:var(--cyan)}
+
+/* footer nav */
+.hud{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:1.6vh 4vw;border-top:1px solid rgba(40,70,120,.35);background:rgba(5,8,15,.75);backdrop-filter:blur(8px);font-family:var(--mono)}
+.hud .dots{display:flex;gap:1.2vh}
+.dot{width:3.4vh;height:.5vh;background:#22354f;border:none;cursor:pointer;border-radius:2px;transition:.3s;padding:0}
+.dot.on{background:var(--green);box-shadow:0 0 12px rgba(0,255,156,.7)}
+.pagenum{font-size:1.6vh;color:var(--muted);letter-spacing:.2em}
+.pagenum b{color:var(--green);font-size:2.4vh}
+.navbtns button{background:transparent;border:1px solid var(--line);color:var(--cyan);font-family:var(--mono);font-size:1.8vh;padding:.7vh 1.2em;border-radius:6px;cursor:pointer;margin-left:.6em;transition:.2s}
+.navbtns button:hover{border-color:var(--green);color:var(--green);box-shadow:0 0 14px rgba(0,255,156,.25)}
+
+/* ============ SLIDE 1 ============ */
+.s1 .body{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0}
+.s1 .eyebrow{font-family:var(--mono);color:var(--cyan);letter-spacing:.45em;font-size:1.8vh;margin-bottom:2.4vh}
+.s1 h1{font-size:11.5vh;font-weight:700;line-height:1;letter-spacing:.01em}
+.s1 h1 .flagchar{color:var(--green);text-shadow:0 0 30px rgba(0,255,156,.55)}
+.s1 .subtitle{font-size:3.4vh;font-weight:500;color:var(--cyan);margin-top:1.6vh;letter-spacing:.06em}
+.s1 .desc{margin-top:2.6vh;font-family:var(--mono);font-size:2vh;color:var(--muted);display:flex;align-items:center;gap:1.4em;letter-spacing:.15em}
+.s1 .desc b{color:var(--text)} .s1 .desc .fp{color:var(--green);font-size:2.6vh}
+.s1-stage{display:flex;align-items:center;gap:3vw;margin-top:4.5vh;width:100%;justify-content:center}
+.s1-code{font-family:var(--mono);font-size:1.7vh;line-height:2;text-align:left;color:#3d5b86;white-space:pre}
+.s1-code em{font-style:normal;color:var(--green);text-shadow:0 0 14px rgba(0,255,156,.4)}
+.s1-code i{font-style:normal;color:var(--cyan)}
+.s1-shield{width:30vh;height:30vh;flex:none;position:relative;display:flex;align-items:center;justify-content:center}
+.s1-shield::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid rgba(0,212,255,.25);animation:ring 4s linear infinite;box-shadow:0 0 40px rgba(0,212,255,.12) inset}
+.s1-shield::after{content:"";position:absolute;inset:9%;border-radius:50%;border:1px dashed rgba(0,255,156,.3);animation:spin 24s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ring{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.06);opacity:.4}}
+.s1-shield svg{width:62%;height:62%;filter:drop-shadow(0 0 22px rgba(0,255,156,.35))}
+
+/* ============ SLIDE 2 ============ */
+.s2 .body{gap:3vw;align-items:stretch}
+.s2-left{flex:1.1;display:flex;flex-direction:column;justify-content:center;gap:2.6vh}
+.s2-def{border-left:3px solid var(--green);padding:2vh 1.6vw;background:rgba(0,255,156,.04);border-radius:0 10px 10px 0;font-size:2.6vh;line-height:1.5}
+.s2-def b{color:var(--green)}
+.s2-pts{display:flex;flex-direction:column;gap:1.4vh}
+.s2-pts div{display:flex;gap:.7em;align-items:baseline;font-size:2.1vh;color:var(--muted)}
+.s2-pts div b{color:var(--text)}
+.s2-pts div::before{content:"◈";color:var(--cyan);font-size:1.6vh}
+.s2-right{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2.4vh}
+.flowcol{display:flex;flex-direction:column;align-items:center;gap:0}
+.fnode{width:72%;text-align:center;font-family:var(--mono);font-size:2.1vh;letter-spacing:.1em;padding:1.5vh 0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.fnode.last{border-color:var(--green);color:var(--green);background:rgba(0,255,156,.06);box-shadow:0 0 24px rgba(0,255,156,.15);font-weight:700}
+.farrow{color:var(--cyan);font-size:2.4vh;line-height:1.25;font-family:var(--mono)}
+.s2-note{font-size:1.9vh;color:var(--muted);text-align:center;line-height:1.5;padding:0 2vw}
+.s2-note b{color:var(--green)}
+
+/* ============ SLIDE 3 ============ */
+.s3 .body{gap:3vw}
+.s3-left{flex:1.05;display:flex;flex-direction:column;justify-content:center;gap:3vh}
+.flagbig{font-family:var(--mono);font-weight:800;text-align:center;font-size:5.8vh;letter-spacing:.02em;padding:3.4vh 1vw;border:1px solid rgba(0,255,156,.4);border-radius:12px;background:rgba(0,255,156,.05);box-shadow:0 0 50px rgba(0,255,156,.1),0 0 0 6px rgba(0,255,156,.03)}
+.flagbig .k{color:var(--cyan)}
+.flagbig.won{animation:wonPulse 1.4s ease}
+@keyframes wonPulse{
+  0%,100%{box-shadow:0 0 50px rgba(0,255,156,.1),0 0 0 6px rgba(0,255,156,.03)}
+  40%{box-shadow:0 0 95px rgba(0,255,156,.6),0 0 0 10px rgba(0,255,156,.14);border-color:var(--green)}}
+.anatomy{display:flex;gap:2vw;justify-content:center}
+.anat{flex:1;text-align:center;border:1px dashed var(--line);border-radius:10px;padding:1.8vh 1vw}
+.anat .t{font-family:var(--mono);font-size:2.4vh;font-weight:700}
+.anat .k .t{color:var(--cyan)} .anat .v .t{color:var(--green)}
+.anat p{font-size:1.7vh;color:var(--muted);margin-top:.8vh;line-height:1.4}
+.s3-right{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2vh}
+.s3-chal{font-size:2vh;color:var(--muted)}
+.s3-chal b{color:var(--text)}
+.s3-key{margin-top:.4vh;font-family:var(--mono);text-align:center;font-size:2.1vh;letter-spacing:.12em;color:var(--green);border-top:1px solid var(--line);padding-top:1.8vh}
+.s3-key::before{content:"🏆 ";}
+
+/* --- interactive submit terminal --- */
+.submit-term{position:relative;cursor:text}
+.submit-body{display:flex;flex-direction:column;gap:1vh;white-space:normal;padding:1.6vh 1.4em}
+.promptline{display:flex;align-items:center;gap:.6em;font-size:2vh;flex-wrap:wrap}
+.ps1{color:var(--cyan);font-weight:700}
+.ps1cmd{color:var(--muted)}
+.flag-input{flex:1;background:rgba(0,255,156,.05);border:1px solid var(--line);border-radius:6px;color:var(--green);font-family:var(--mono);font-size:2vh;font-weight:500;padding:.9vh .8em;outline:none;min-width:0;transition:border-color .2s, box-shadow .2s}
+.flag-input:focus{border-color:var(--green);box-shadow:0 0 16px rgba(0,255,156,.28)}
+.flag-input::placeholder{color:#33507a}
+.flag-input.err{border-color:var(--red);box-shadow:0 0 14px rgba(255,92,122,.35)}
+.sline{font-size:1.9vh;color:var(--muted);min-height:3vh;line-height:1.5;word-break:break-all}
+.sline .u{color:var(--text)}
+.verdict{font-size:2vh;font-weight:700;min-height:3.2vh;line-height:1.5}
+.verdict.ok{color:var(--green);text-shadow:0 0 16px rgba(0,255,156,.55);animation:popIn .45s cubic-bezier(.2,1.4,.4,1)}
+.verdict.no{color:var(--red);text-shadow:0 0 14px rgba(255,92,122,.5);animation:popIn .4s}
+.verdict.info{color:var(--cyan);font-weight:400;animation:popIn .4s}
+@keyframes popIn{from{opacity:0;transform:scale(.85) translateY(6px)}to{opacity:1;transform:none}}
+.hintline{font-size:1.65vh;color:var(--cyan);opacity:.9;min-height:2.5vh;line-height:1.4}
+.submit-actions{display:flex;gap:1em;margin-top:.2vh;flex-wrap:wrap}
+.sbtn{background:rgba(0,255,156,.08);border:1px solid rgba(0,255,156,.5);color:var(--green);font-family:var(--mono);font-size:1.75vh;font-weight:700;letter-spacing:.12em;padding:.9vh 1.5em;border-radius:6px;cursor:pointer;transition:.2s}
+.sbtn:hover{background:rgba(0,255,156,.18);box-shadow:0 0 18px rgba(0,255,156,.35)}
+.sbtn.ghost{border-color:var(--line);color:var(--muted);background:transparent;font-weight:400}
+.sbtn.ghost:hover{color:var(--cyan);border-color:var(--cyan);box-shadow:none}
+.sbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.term.wrong{border-color:var(--red);box-shadow:0 0 36px rgba(255,92,122,.4);animation:shakeX .5s}
+.term.correct{border-color:var(--green);box-shadow:0 0 46px rgba(0,255,156,.45)}
+.pt{position:absolute;width:.9vh;height:.9vh;border-radius:2px;pointer-events:none;animation:ptFly .85s cubic-bezier(.2,.7,.3,1) forwards;z-index:5}
+@keyframes ptFly{from{opacity:1;transform:translate(0,0) rotate(0) scale(1)}to{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(220deg) scale(.4)}}
+.float-pts{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);font-family:var(--mono);font-weight:800;font-size:2.7vh;color:var(--green);text-shadow:0 0 22px rgba(0,255,156,.9);pointer-events:none;animation:floatUp 1.4s ease-out forwards;z-index:5;white-space:nowrap}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,14px) scale(.7)}25%{opacity:1;transform:translate(-50%,0) scale(1.05)}100%{opacity:0;transform:translate(-50%,-72px) scale(1.12)}}
+.score{margin-left:auto}
+.score b{color:var(--green)}
+
+/* ============ SLIDE 4 ============ */
+.s4-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2vh 1.4vw;flex:1;align-content:center}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2vh 1.2vw;position:relative}
+.step .n{font-family:var(--mono);font-weight:800;font-size:1.7vh;color:#000;background:var(--cyan);width:3.4vh;height:3.4vh;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:1.2vh}
+.step:nth-child(5) .n{background:var(--green)}
+.step h3{font-size:2.2vh;letter-spacing:.03em;margin-bottom:.7vh}
+.step p{font-size:1.65vh;color:var(--muted);line-height:1.5}
+.step .ex{font-family:var(--mono);font-size:1.55vh;color:var(--cyan);margin-top:.9vh}
+.step::after{content:"→";position:absolute;right:-1.25vw;top:50%;transform:translateY(-50%);color:var(--cyan);font-size:2.6vh;font-family:var(--mono)}
+.step:nth-child(3)::after,.step:nth-child(6)::after{content:""}
+.s4-bottom{display:flex;gap:3vw;align-items:stretch;margin-top:2.6vh}
+.s4-note{flex:1;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(0,212,255,.4);border-radius:10px;font-family:var(--mono);font-size:2.2vh;letter-spacing:.08em;color:var(--cyan);text-align:center;padding:1.5vh}
+.s4-board{flex:1}
+.s4-board .term-body{font-size:1.9vh;padding:1.2vh 1.4em}
+.s4-board .rank{color:var(--muted)} .s4-board .team{color:var(--text)} .s4-board .pts{float:right;color:var(--green)}
+
+/* ============ SLIDE 5 ============ */
+.s5-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:2vh 1.3vw;flex:1;align-content:center}
+.cat .ic{width:3.6vh;height:3.6vh}
+.cat h3{font-family:var(--mono);letter-spacing:.14em;font-size:1.9vh;color:var(--cyan)}
+.cat h3 span{color:var(--text);font-family:var(--disp);letter-spacing:.03em;display:block;font-size:2.1vh;font-weight:600;margin-top:.3vh}
+.cat p{margin-top:.6vh;font-size:1.6vh}
+.cat .mini{font-family:var(--mono);font-size:1.45vh;color:var(--green);margin-top:1vh;line-height:1.7}
+.cat .mini .arr{color:var(--muted)}
+
+/* ============ SLIDE 6 — TOOLBOX ============ */
+.sT{gap:0}
+.tb-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:1.5vh 1vw;flex:1;min-height:0;margin-bottom:1.4vh}
+.tcat{display:flex;flex-direction:column;gap:.7vh;padding:1.5vh 1vw}
+.tcat .tc-head{display:flex;align-items:center;gap:.7em;margin-bottom:.2vh}
+.tcat .ic{width:3.1vh;height:3.1vh}
+.tcat h3{font-family:var(--mono);letter-spacing:.14em;font-size:1.75vh;color:var(--cyan);margin:0}
+.toolrow{display:flex;align-items:baseline;gap:.55em;padding:.55vh .6em;border-radius:7px;cursor:pointer;transition:.15s;border:1px solid transparent}
+.toolrow:hover{background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.25);transform:translateX(3px)}
+.toolrow.sel{background:rgba(0,255,156,.09);border-color:rgba(0,255,156,.45)}
+.toolrow .star{color:var(--green);font-size:1.5vh;flex:none;width:1.1em}
+.toolrow .tn{font-family:var(--mono);font-size:1.55vh;color:var(--cyan);font-weight:700;white-space:nowrap}
+.toolrow .td{font-size:1.38vh;color:var(--muted);line-height:1.3}
+.manbar .term-body{font-size:1.75vh;line-height:1.65;min-height:6.5vh;white-space:normal}
+.manbar .mn{color:var(--cyan);font-weight:700}
+.manbar .md{color:var(--muted)}
+.manbar .mg{color:var(--green)}
+
+/* ============ SLIDE 7 — MINI ARENA ============ */
+.lvlrow{display:flex;gap:1vw;margin-bottom:1.4vh}
+.lvlbtn{flex:1;display:flex;align-items:center;gap:.9em;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.1vh 1.2vw;cursor:pointer;transition:.2s;font-family:var(--mono);text-align:left;color:var(--muted)}
+.lvlbtn .lv{font-size:2.4vh}
+.lvlbtn b{color:var(--text);font-size:1.9vh;letter-spacing:.06em;display:block}
+.lvlbtn .sub2{font-size:1.3vh;display:block;margin-top:.2vh}
+.lvlbtn .cnt{margin-left:auto;font-size:1.6vh;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:.4vh .9em;white-space:nowrap}
+.lvlbtn .cnt b{color:var(--green);font-size:2vh}
+.lvlbtn:hover{border-color:var(--cyan)}
+.lvlbtn.on{border-color:var(--green);background:rgba(0,255,156,.07);box-shadow:0 0 16px rgba(0,255,156,.12)}
+.lvlbtn.on .cnt{border-color:rgba(0,255,156,.45)}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 rgba(0,212,255,0)}50%{box-shadow:0 0 22px rgba(0,212,255,.55)}}
+.lvlbtn.pulse{animation:nudge 1.2s infinite;border-color:var(--cyan)}
+.arena-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:1.2vh .8vw;margin-bottom:1.6vh}
+.atab{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:.3vh;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.2vh 1vw;cursor:pointer;transition:.2s;text-align:left;font-family:var(--disp)}
+.atab:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.atab.on{border-color:var(--green);background:rgba(0,255,156,.07);box-shadow:0 0 18px rgba(0,255,156,.15)}
+.atab .t1{font-family:var(--mono);font-size:1.4vh;letter-spacing:.14em;color:var(--cyan)}
+.atab .t2{font-size:1.9vh;font-weight:600;color:var(--text)}
+.atab .t3{font-family:var(--mono);font-size:1.3vh;color:var(--muted)}
+.atab .chk{position:absolute;top:.7vh;right:.8vh;font-size:1.8vh;color:var(--green);opacity:0;transition:.3s;text-shadow:0 0 10px rgba(0,255,156,.8)}
+.atab.done .chk{opacity:1}
+.atab.done .t2{color:var(--green)}
+.arena-head{display:flex;align-items:center;gap:1.2vw;margin-bottom:1.4vh}
+.arena-head h3{font-size:2.8vh;white-space:nowrap}
+.pts-p{font-family:var(--mono);color:var(--green);border:1px solid rgba(0,255,156,.4);border-radius:999px;padding:.4vh 1em;font-size:1.5vh;letter-spacing:.1em;white-space:nowrap}
+.arena-head .brf{color:var(--muted);font-size:1.7vh;margin-left:auto;text-align:right;max-width:34vw;line-height:1.4}
+.statchip{font-family:var(--mono);font-size:1.5vh;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:.5vh 1em;white-space:nowrap}
+.statchip b{color:var(--green)}
+.arena-main{flex:1;display:flex;gap:1.6vw;min-height:0}
+.stage{flex:1.45;display:flex;flex-direction:column;gap:1.3vh;min-width:0;overflow:auto}
+.side{flex:1;display:flex;flex-direction:column;gap:1.3vh;min-width:0}
+.mini-out{font-family:var(--mono);font-size:1.6vh;line-height:1.75;background:#081020;border:1px solid var(--line);border-radius:8px;padding:1.2vh 1em;min-height:9vh;white-space:pre-wrap;overflow:auto}
+.codebox2{font-family:var(--mono);font-size:1.6vh;line-height:1.8;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1.4vh 1.2em;white-space:pre-wrap}
+.codebox2 .cm{color:#4a6288}.codebox2 .k{color:var(--cyan)}.codebox2 .s{color:var(--green)}
+.ct{font-family:var(--mono);font-size:2vh;font-weight:700;letter-spacing:.03em;text-align:center;padding:1.6vh;border:1px dashed rgba(0,212,255,.5);border-radius:8px;background:rgba(0,212,255,.04);word-break:break-all}
+.ct.hit{border-color:var(--green);color:var(--green);text-shadow:0 0 16px rgba(0,255,156,.5)}
+.shiftrow{display:flex;align-items:center;justify-content:center;gap:1em;font-family:var(--mono);font-size:1.9vh;flex-wrap:wrap}
+.shiftrow .sbtn{padding:.5vh 1em}
+.dec{font-family:var(--mono);font-size:1.9vh;text-align:center;min-height:3.2vh;word-break:break-all;color:var(--muted)}
+.dec.hit{color:var(--green);text-shadow:0 0 18px rgba(0,255,156,.5);font-weight:700}
+.opsline{font-family:var(--mono);font-size:1.4vh;color:var(--muted);text-align:center}
+.mem{display:flex;gap:.5vh;justify-content:center;align-items:center;margin:.4vh 0}
+.cell{width:4vh;height:5vh;border:1px solid var(--line);border-radius:6px;background:#081020;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:1.7vh;color:var(--text)}
+.cell.dim{color:#33507a}
+.cell.ovf{border-color:var(--red);color:var(--red);box-shadow:0 0 10px rgba(255,92,122,.4)}
+.cell.adm{margin-left:1vh;border-color:#3a4f76;color:var(--muted)}
+.cell.adm.set{border-color:var(--green);color:var(--green);box-shadow:0 0 14px rgba(0,255,156,.5);font-weight:800}
+.memcap{text-align:center;font-family:var(--mono);font-size:1.3vh;color:var(--muted)}
+.oi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.2vh .8vw}
+.oi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.4vh 1vw;cursor:pointer;transition:.2s;font-size:1.7vh}
+.oi:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.oi .hd{display:flex;align-items:center;gap:.6em;font-weight:600;font-size:1.8vh}
+.oi .av{width:3.4vh;height:3.4vh;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1.8vh;flex:none}
+.oi .bio{color:var(--muted);font-size:1.45vh;margin-top:.6vh;line-height:1.4}
+.oi .more{max-height:0;overflow:hidden;transition:max-height .35s ease;font-family:var(--mono);font-size:1.45vh;color:var(--cyan);line-height:1.6}
+.oi.open .more{max-height:26vh;margin-top:.9vh;border-top:1px dashed var(--line);padding-top:.9vh}
+.oi.hit{border-color:var(--green);box-shadow:0 0 16px rgba(0,255,156,.25)}
+.oi.locked .more{color:#33507a}
+@keyframes unlockPulse{0%,100%{box-shadow:0 0 0 rgba(0,212,255,0)}50%{box-shadow:0 0 20px rgba(0,212,255,.5)}}
+.oi.unlockable{border-color:var(--cyan);animation:unlockPulse 1.2s infinite}
+.taglink{color:var(--green);cursor:pointer;text-decoration:underline dotted}
+.grand{border:1px solid var(--green);background:rgba(0,255,156,.07);border-radius:10px;padding:1.6vh 1.2vw;text-align:center;font-size:1.8vh;line-height:1.55;color:var(--muted);box-shadow:0 0 30px rgba(0,255,156,.15);animation:popIn .6s}
+.grand b{color:var(--green);font-size:2.2vh}
+
+/* ============ SLIDE 8 ============ */
+.s8 .body{gap:2.2vw;align-items:center}
+.s8-col{flex:1;display:flex;flex-direction:column;gap:1.8vh;min-width:0}
+.s8-label{font-family:var(--mono);font-size:1.6vh;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase}
+.s8-label b{color:var(--green)}
+.mocksite{font-family:var(--mono);font-size:2.2vh;line-height:1.9;color:var(--muted);text-align:center;padding:2.4vh 1em}
+.mocksite .btn{display:inline-block;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:.4vh 1.4em;margin-top:1vh;font-size:1.9vh;letter-spacing:.15em}
+.mocksite .warn{color:#41567a;font-size:1.7vh}
+.codebox{font-family:var(--mono);font-size:2vh;line-height:1.9;padding:1.8vh 1.4em;white-space:pre-wrap}
+.codebox .cm{color:#4a6288}
+.codebox .hl{background:rgba(0,255,156,.14);color:var(--green);border-radius:4px;padding:.05em .2em;font-weight:700;box-shadow:0 0 18px rgba(0,255,156,.25)}
+.submitbox{font-family:var(--mono);font-size:2.1vh;line-height:2;padding:2vh 1.4em;white-space:pre-wrap}
+.ok{color:var(--green);font-weight:700}
+.s8-note{margin-top:1.4vh;text-align:center;font-size:1.8vh;color:var(--muted);line-height:1.5}
+.s8-note b{color:var(--cyan)}
+.legal{font-family:var(--mono);font-size:1.5vh;letter-spacing:.14em;color:var(--green);text-align:center;text-transform:uppercase}
+.legal::before{content:"🛡 ";}
+
+/* ============ SLIDE 9 ============ */
+.s9 .body{flex-direction:column;gap:2.6vh;justify-content:center}
+.vs-wrap{display:grid;grid-template-columns:1fr 6vh 1fr;gap:0;flex:1;align-items:stretch}
+.vs-side{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:2.4vh 1.6vw;display:flex;flex-direction:column}
+.vs-side.right{border-color:rgba(255,92,122,.35)}
+.vs-head{display:flex;align-items:center;gap:1vw;padding-bottom:1.6vh;border-bottom:1px solid var(--line);margin-bottom:1.6vh}
+.vs-head h3{font-size:2.8vh}
+.vs-head .pill2{font-family:var(--mono);font-size:1.4vh;letter-spacing:.15em;padding:.5vh .9em;border-radius:999px}
+.vs-side.left .pill2{color:var(--green);border:1px solid rgba(0,255,156,.4);background:rgba(0,255,156,.06)}
+.vs-side.right .pill2{color:var(--red);border:1px solid rgba(255,92,122,.4);background:rgba(255,92,122,.06)}
+.vs-row{display:flex;gap:.7em;font-size:2vh;padding:1.05vh 0;color:var(--muted);align-items:baseline;line-height:1.4}
+.vs-side.left .vs-row b{color:var(--green)} .vs-side.right .vs-row b{color:var(--red)}
+.vs-side.left .vs-row::before{content:"✔";color:var(--green);font-size:1.7vh}
+.vs-side.right .vs-row::before{content:"▲";color:var(--red);font-size:1.4vh}
+.vs-mid{display:flex;align-items:center;justify-content:center}
+.vs-mid span{font-family:var(--mono);font-weight:800;font-size:2.6vh;color:var(--cyan);border:1px solid rgba(0,212,255,.4);border-radius:50%;width:6vh;height:6vh;display:flex;align-items:center;justify-content:center;background:var(--bg2);box-shadow:0 0 26px rgba(0,212,255,.2)}
+.s9-banner{display:flex;gap:2vw}
+.s9-banner .b1{flex:1.2;text-align:center;font-family:var(--mono);font-size:2.4vh;letter-spacing:.1em;color:var(--green);border:1px solid rgba(0,255,156,.4);border-radius:10px;padding:1.8vh;background:rgba(0,255,156,.05);box-shadow:0 0 30px rgba(0,255,156,.08)}
+.s9-banner .b2{flex:2;display:flex;align-items:center;justify-content:center;gap:.6em;border-left:3px solid var(--cyan);background:rgba(0,212,255,.05);border-radius:0 10px 10px 0;font-size:2.2vh;padding:1.8vh}
+.s9-banner .b2 b{color:var(--cyan)}
+
+/* ============ SLIDE 10 ============ */
+.s10 .body{gap:2.5vw}
+.s10-left{flex:1.35;display:grid;grid-template-columns:1fr 1fr;gap:1.8vh 1.1vw;align-content:center}
+.s10-left .card{padding:1.8vh 1.1vw}
+.s10-left .card h3{font-size:2vh;margin:.6vh 0 .4vh}
+.s10-left .card p{font-size:1.55vh}
+.s10-left .ic{width:3.2vh;height:3.2vh}
+.s10-right{flex:1;display:flex;flex-direction:column;justify-content:center;gap:3vh}
+.path{display:flex;flex-direction:column;gap:0;align-items:flex-start}
+.pnode{display:flex;align-items:center;gap:1em;font-family:var(--mono);font-size:1.9vh}
+.pnode .dot2{width:2.2vh;height:2.2vh;border-radius:50%;border:2px solid var(--cyan);background:var(--bg2);flex:none}
+.pnode.last .dot2{border-color:var(--green);background:rgba(0,255,156,.2);box-shadow:0 0 16px rgba(0,255,156,.6)}
+.pnode.last{color:var(--green);font-weight:700}
+.pline{width:2px;height:3vh;background:linear-gradient(var(--cyan),rgba(0,212,255,.15));margin-left:1vh}
+.quote{font-size:2.9vh;line-height:1.45;font-weight:600;padding-left:1.4vw;border-left:3px solid var(--green)}
+.quote .g{text-shadow:0 0 20px rgba(0,255,156,.4)}
+.s10-final{text-align:center;font-size:2.6vh;color:var(--muted)}
+.s10-final .fp{font-size:4vh;display:block;margin-bottom:.6vh;filter:drop-shadow(0 0 14px rgba(0,255,156,.5))}
+</style>
+</head>
+<body>
+<div class="scan"></div>
+
+<div class="deck" id="deck">
+
+<!-- ================= SLIDE 1 ================= -->
+<section class="slide s1 active">
+  <div class="body">
+    <div class="eyebrow rv" data-d="1">/// CYBERSECURITY COMPETITION 101 ///</div>
+    <h1 class="rv" data-d="2">CTF — <span class="flagchar">Capture The Flag</span></h1>
+    <div class="subtitle rv" data-d="3">Cybersecurity Turned Into a Game</div>
+    <div class="desc rv" data-d="4"><b>LEARN</b> • <b>SOLVE</b> • <b>EXPLOIT</b> • <b>CAPTURE</b> <span class="fp">🏴</span></div>
+    <div class="s1-stage rv" data-d="5">
+      <div class="s1-code">import <i>ctf</i>
+def start():
+    challenge = <i>explore()</i>
+    flag      = <em>hidden_somewhere</em>
+    if you.find(challenge):
+        <em>submit(flag)</em>   # +100 pts</div>
+      <div class="s1-shield">
+        <svg viewBox="0 0 100 100">
+          <path d="M50 6 L86 20 V48 C86 72 70 86 50 94 C30 86 14 72 14 48 V20 Z" fill="rgba(0,255,156,.05)" stroke="#00ff9c" stroke-width="2"/>
+          <rect x="36" y="44" width="28" height="22" rx="4" fill="none" stroke="#00d4ff" stroke-width="2.4"/>
+          <path d="M40 44 V36 a10 10 0 0 1 20 0 v8" fill="none" stroke="#00d4ff" stroke-width="2.4"/>
+          <circle cx="50" cy="54" r="3" fill="#00ff9c"/>
+          <line x1="50" y1="56" x2="50" y2="61" stroke="#00ff9c" stroke-width="2.4"/>
+          <rect x="72" y="10" width="12" height="8" fill="none" stroke="#00ff9c" stroke-width="1.5"/>
+          <path d="M72 10 v-3 h9 v3" fill="none" stroke="#00ff9c" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="s1-code">user@ctf:~$ <i>./begin</i>
+&gt; loading challenges... <em>OK</em>
+&gt; flags planted... <em>12 hidden</em>
+&gt; awaiting player<span class="cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 2 ================= -->
+<section class="slide s2">
+  <div class="topbar"><span class="tag">01 // DEFINITION</span><span class="mono">ctf://what-is-it</span></div>
+  <h2 class="title rv" data-d="1">What is <span class="hl">CTF</span>?</h2>
+  <div class="body">
+    <div class="s2-left">
+      <div class="s2-def rv" data-d="2"><b>CTF (Capture The Flag)</b> is a cybersecurity competition where participants solve <b>security-related challenges</b> to find hidden <b>“flags”</b>.</div>
+      <div class="s2-pts rv" data-d="3">
+        <div>A <b>hands-on cybersecurity game</b> — not a theory exam</div>
+        <div>A <b>collection of security challenges</b> of varying difficulty</div>
+        <div>A way to <b>practice technical skills</b> safely</div>
+        <div>Often <b>competitive and team-based</b></div>
+        <div>Solved in a <b>controlled, authorized environment</b></div>
+      </div>
+    </div>
+    <div class="s2-right">
+      <div class="flowcol rv" data-d="4">
+        <div class="fnode">CYBERSECURITY CHALLENGE</div>
+        <div class="farrow">▼</div>
+        <div class="fnode">INVESTIGATE</div>
+        <div class="farrow">▼</div>
+        <div class="fnode">SOLVE</div>
+        <div class="farrow">▼</div>
+        <div class="fnode last">🏴 FIND THE FLAG</div>
+        <div class="farrow">▼</div>
+        <div class="fnode">SUBMIT</div>
+        <div class="farrow">▼</div>
+        <div class="fnode">EARN POINTS <span class="g">▲</span></div>
+      </div>
+      <div class="s2-note rv" data-d="5">💡 The <b>“flag”</b> is simply a <b>special piece of text</b> that proves you solved the challenge.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 3 (INTERACTIVE SUBMIT) ================= -->
+<section class="slide s3">
+  <div class="topbar"><span class="tag">02 // THE FLAG</span><span class="mono">ctf://flags-explained</span></div>
+  <h2 class="title rv" data-d="1">So… What Exactly Is a <span class="hl">“Flag”</span>?</h2>
+  <div class="sub rv" data-d="2">A flag = a hidden string of text planted inside a challenge. Finding it = winning. <span class="g">▸ Try submitting one yourself!</span></div>
+  <div class="body">
+    <div class="s3-left">
+      <div class="flagbig rv" data-d="3" id="flagBig"><span class="k">flag</span>{you_found_me}</div>
+      <div class="anatomy rv" data-d="4">
+        <div class="anat k"><div class="t">flag</div><p>identifies the text as a flag</p></div>
+        <div class="anat v"><div class="t">{you_found_me}</div><p>the secret value you submit</p></div>
+      </div>
+    </div>
+    <div class="s3-right">
+      <div class="s3-chal rv" data-d="5"><b>CHALLENGE:</b> <em>“Find the hidden message on this website.”</em></div>
+      <div class="term rv" data-d="6">
+        <div class="term-bar"><i></i><i></i><i></i><span>view-source — site.html</span></div>
+        <div class="term-body"><span class="c">&lt;!-- </span>flag{inspect_the_source}<span class="c"> --&gt;</span></div>
+      </div>
+      <div class="term submit-term rv" data-d="7" id="submitTerm">
+        <div class="term-bar"><i></i><i></i><i></i><span>submit-flag — interactive</span><span class="score">score: <b id="scoreVal" data-v="0">0</b> pts</span></div>
+        <div class="submit-body">
+          <div class="promptline">
+            <span class="ps1">$</span><span class="ps1cmd">submit</span>
+            <input id="flagInput" class="flag-input" type="text" placeholder="type the flag here…" spellcheck="false" autocomplete="off" aria-label="flag input">
+          </div>
+          <div class="sline" id="flagEcho"></div>
+          <div class="verdict" id="flagVerdict"></div>
+          <div class="hintline" id="flagHint"></div>
+          <div class="submit-actions">
+            <button class="sbtn" id="submitBtn" onclick="submitFlag()">ENTER ⏎</button>
+            <button class="sbtn ghost" onclick="resetDemo()">↺ RESET</button>
+          </div>
+        </div>
+      </div>
+      <div class="s3-key rv" data-d="8">Find the flag = Complete the challenge</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 4 ================= -->
+<section class="slide s4">
+  <div class="topbar"><span class="tag">03 // GAMEPLAY</span><span class="mono">ctf://how-it-works</span></div>
+  <h2 class="title rv" data-d="1">How Does a <span class="hl">CTF Work</span>?</h2>
+  <div class="s4-steps">
+    <div class="step rv" data-d="2"><div class="n">1</div><h3>Choose a Challenge</h3><p>Pick from a list on the CTF platform.</p><div class="ex">“Can you find the hidden password?”</div></div>
+    <div class="step rv" data-d="3"><div class="n">2</div><h3>Investigate</h3><p>Look closely at the website • files • code • network traffic • program behavior.</p></div>
+    <div class="step rv" data-d="4"><div class="n">3</div><h3>Find a Clue or Vulnerability</h3><p>Identify something unusual or exploitable.</p></div>
+    <div class="step rv" data-d="5"><div class="n">4</div><h3>Solve the Challenge</h3><p>Apply the appropriate cybersecurity techniques.</p></div>
+    <div class="step rv" data-d="6"><div class="n">5</div><h3>Capture the Flag 🏴</h3><p>Locate the hidden flag inside the challenge.</p></div>
+    <div class="step rv" data-d="7"><div class="n">6</div><h3>Submit the Flag</h3><p>The platform verifies it and awards points.</p></div>
+  </div>
+  <div class="s4-bottom">
+    <div class="s4-note rv" data-d="7">⚡ More difficult challenge&nbsp;&nbsp;→&nbsp;&nbsp;More points</div>
+    <div class="term s4-board rv" data-d="8">
+      <div class="term-bar"><i></i><i></i><i></i><span>live-leaderboard</span></div>
+      <div class="term-body"><span class="rank">1.</span> <span class="team">Team Alpha</span><span class="pts">1850 pts</span>
+<span class="rank">2.</span> <span class="team">Cyber Squad</span><span class="pts">1640 pts</span>
+<span class="rank">3.</span> <span class="team">Hackers United</span><span class="pts">1420 pts</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 5 ================= -->
+<section class="slide s5">
+  <div class="topbar"><span class="tag">04 // CATEGORIES</span><span class="mono">ctf://challenge-types</span></div>
+  <h2 class="title rv" data-d="1">What Kind of <span class="hl">Challenges</span> Are in a CTF?</h2>
+  <div class="s5-grid">
+    <div class="card cat rv" data-d="2"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+      <h3>WEB<span>Web Security</span></h3><p>Find vulnerabilities in websites & web apps.</p>
+      <div class="mini">▸ hidden info<br>▸ weak authentication<br>▸ input vulnerabilities</div></div>
+    <div class="card cat rv" data-d="3"><div class="ic cy"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.5"/></svg></div>
+      <h3>CRYPTO<span>Cryptography</span></h3><p>Solve encrypted or encoded messages.</p>
+      <div class="mini">encrypted msg<br><span class="arr">↓</span> decrypt<br><span class="arr">↓</span> FLAG 🏴</div></div>
+    <div class="card cat rv" data-d="4"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></div>
+      <h3>FORENSICS<span>Digital Investigation</span></h3><p>Analyze digital evidence to find hidden data.</p>
+      <div class="mini">▸ images & docs<br>▸ network captures<br>▸ logs</div></div>
+    <div class="card cat rv" data-d="5"><div class="ic cy"><svg viewBox="0 0 24 24"><path d="M8 6 3 12l5 6M16 6l5 6-5 6M13 4l-3 16"/></svg></div>
+      <h3>REVERSING<span>Reverse Engineering</span></h3><p>Analyze a program to figure out what it does — and where the flag is hidden.</p></div>
+    <div class="card cat rv" data-d="6"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/><path d="M4 21c1-1.5 2.5-2 4-2"/></svg></div>
+      <h3>PWN<span>Binary Exploitation</span></h3><p>Find weaknesses in compiled programs and use them to obtain the flag. Beginner-friendly versions exist!</p></div>
+    <div class="card cat rv" data-d="7"><div class="ic cy"><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M4 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5"/><path d="M17 5l1 1 2.5-2.5"/><path d="M18.5 11.5 21 14"/></svg></div>
+      <h3>OSINT<span>Open-Source Intelligence</span></h3><p>Find information from public sources.</p>
+      <div class="mini">▸ websites & public docs<br>▸ social media<br>▸ search engines</div></div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 6 — TOOLBOX ================= -->
+<section class="slide sT">
+  <div class="topbar"><span class="tag">05 // TOOLKIT</span><span class="mono">ctf://toolbox</span></div>
+  <h2 class="title rv" data-d="1">The CTF <span class="hl">Toolbox</span></h2>
+  <div class="sub rv" data-d="1">Tools used for each category — <span class="g">★ = beginner-friendly starting point</span>. <span class="c">▸ Click any tool to read what it does.</span></div>
+  <div class="tb-grid rv" data-d="2">
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div><h3>🌐 WEB</h3></div>
+      <div class="toolrow" data-tool="devtools"><span class="star">★</span><span class="tn">Browser DevTools</span><span class="td">inspect HTML & network, live</span></div>
+      <div class="toolrow" data-tool="burp"><span class="star"></span><span class="tn">Burp Suite</span><span class="td">intercept & edit web requests</span></div>
+      <div class="toolrow" data-tool="gobuster"><span class="star"></span><span class="tn">gobuster / dirsearch</span><span class="td">discover hidden pages</span></div>
+    </div>
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic cy"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.5"/></svg></div><h3>🔐 CRYPTO</h3></div>
+      <div class="toolrow" data-tool="cyberchef"><span class="star">★</span><span class="tn">CyberChef</span><span class="td">decode anything in the browser</span></div>
+      <div class="toolrow" data-tool="dcode"><span class="star"></span><span class="tn">dCode.fr</span><span class="td">identify & solve old ciphers</span></div>
+      <div class="toolrow" data-tool="john"><span class="star"></span><span class="tn">John / hashcat</span><span class="td">crack password hashes</span></div>
+    </div>
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></div><h3>🔎 FORENSICS</h3></div>
+      <div class="toolrow" data-tool="strings"><span class="star">★</span><span class="tn">strings & xxd</span><span class="td">readable text inside files</span></div>
+      <div class="toolrow" data-tool="binwalk"><span class="star"></span><span class="tn">binwalk</span><span class="td">extract files hidden in files</span></div>
+      <div class="toolrow" data-tool="wireshark"><span class="star"></span><span class="tn">Wireshark</span><span class="td">dissect network captures</span></div>
+    </div>
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic cy"><svg viewBox="0 0 24 24"><path d="M8 6 3 12l5 6M16 6l5 6-5 6M13 4l-3 16"/></svg></div><h3>💻 REVERSING</h3></div>
+      <div class="toolrow" data-tool="ghidra"><span class="star">★</span><span class="tn">Ghidra</span><span class="td">decompiler: binary → code</span></div>
+      <div class="toolrow" data-tool="strace"><span class="star"></span><span class="tn">strace / ltrace</span><span class="td">spy on a running program</span></div>
+      <div class="toolrow" data-tool="objdump"><span class="star"></span><span class="tn">objdump & file</span><span class="td">quick binary inspection</span></div>
+    </div>
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/><path d="M4 21c1-1.5 2.5-2 4-2"/></svg></div><h3>🐛 PWN</h3></div>
+      <div class="toolrow" data-tool="gdb"><span class="star">★</span><span class="tn">gdb + pwndbg</span><span class="td">debug & inspect memory</span></div>
+      <div class="toolrow" data-tool="pwntools"><span class="star"></span><span class="tn">pwntools</span><span class="td">automate exploits with Python</span></div>
+      <div class="toolrow" data-tool="checksec"><span class="star"></span><span class="tn">checksec</span><span class="td">list binary protections</span></div>
+    </div>
+
+    <div class="card tcat">
+      <div class="tc-head"><div class="ic cy"><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M4 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5"/><path d="M17 5l1 1 2.5-2.5"/><path d="M18.5 11.5 21 14"/></svg></div><h3>🕵️ OSINT</h3></div>
+      <div class="toolrow" data-tool="dorks"><span class="star">★</span><span class="tn">Google Dorks</span><span class="td">pro search operators</span></div>
+      <div class="toolrow" data-tool="shodan"><span class="star"></span><span class="tn">Shodan</span><span class="td">search connected devices</span></div>
+      <div class="toolrow" data-tool="whois"><span class="star"></span><span class="tn">WHOIS / ExifTool</span><span class="td">domain & photo metadata</span></div>
+    </div>
+
+  </div>
+  <div class="term manbar rv" data-d="3">
+    <div class="term-bar"><i></i><i></i><i></i><span>man-pages — click a tool above</span></div>
+    <div class="term-body" id="manOut">🎒 <span class="md">Starter kit — </span><span class="mn">Browser DevTools</span><span class="md"> + </span><span class="mn">a Linux terminal</span><span class="md"> + </span><span class="mn">CyberChef</span><span class="md"> will carry you through most beginner challenges. ▸ Click any tool for details.</span></div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 7 — MINI CTF ARENA (2 LEVELS) ================= -->
+<section class="slide sA">
+  <div class="topbar"><span class="tag">06 // HANDS-ON</span><span class="mono">ctf://mini-arena</span></div>
+  <h2 class="title rv" data-d="1">Try It Yourself — <span class="hl">Mini CTF Arena</span></h2>
+  <div class="sub rv" data-d="1">Twelve challenges across two levels — 🥉 Rookie → 🥈 Advanced. <span class="g">Safe simulations only — no real systems involved.</span> Harder flags pay more ▸</div>
+
+  <div class="lvlrow rv" data-d="2">
+    <button class="lvlbtn on" id="lvl1Btn">
+      <span class="lv">🥉</span>
+      <span><b>LEVEL 1 · ROOKIE</b><span class="sub2">6 starter challenges · max 850 pts</span></span>
+      <span class="cnt"><b id="l1Cnt">0</b>/6 ✔</span>
+    </button>
+    <button class="lvlbtn" id="lvl2Btn">
+      <span class="lv">🥈</span>
+      <span><b>LEVEL 2 · ADVANCED</b><span class="sub2">harder techniques · max 1,850 pts</span></span>
+      <span class="cnt"><b id="l2Cnt">0</b>/6 ✔</span>
+    </button>
+  </div>
+
+  <div class="arena-tabs rv" data-d="3" id="arenaTabs"></div>
+  <div class="arena-head rv" data-d="4">
+    <h3 id="chTitle"></h3>
+    <span class="pts-p" id="chPts"></span>
+    <div class="brf" id="chBrief"></div>
+    <div class="statchip">TOTAL <b id="arenaPts">0</b> PTS</div>
+  </div>
+  <div class="arena-main rv" data-d="5">
+    <div class="stage" id="chStage"></div>
+    <div class="side">
+      <div class="term" id="chSide">
+        <div class="term-bar"><i></i><i></i><i></i><span>submit-flag</span></div>
+        <div class="submit-body">
+          <div class="promptline">
+            <span class="ps1">$</span><span class="ps1cmd">submit</span>
+            <input id="chInput" class="flag-input" type="text" placeholder="flag{...}" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="sline" id="chEcho"></div>
+          <div class="verdict" id="chVer"></div>
+          <div class="submit-actions">
+            <button class="sbtn" onclick="submitCh()">ENTER ⏎</button>
+            <button class="sbtn ghost" id="chHint">💡 HINT</button>
+            <button class="sbtn ghost" id="chReset">↺</button>
+          </div>
+          <div class="hintline" id="chHintBox"></div>
+        </div>
+      </div>
+      <div class="grand" id="grandBanner" hidden></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 8 ================= -->
+<section class="slide s8">
+  <div class="topbar"><span class="tag">07 // WALKTHROUGH</span><span class="mono">ctf://simple-example</span></div>
+  <h2 class="title rv" data-d="1">Example: <span class="hl">Finding a Hidden Flag</span></h2>
+  <div class="legal rv" data-d="1">⚠ legal & intentional — this site exists only inside the CTF sandbox</div>
+  <div class="body">
+    <div class="s8-col rv" data-d="2">
+      <div class="s8-label"><b>SCENARIO</b> — the CTF gives you a fake website</div>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span>http://challenge-01.ctf.local</span></div>
+        <div class="mocksite">
+          WELCOME TO MY SITE<br>
+          <span class="warn">Nothing suspicious here...</span><br>
+          <span class="btn">[ LOGIN ]</span>
+        </div>
+      </div>
+      <div class="s8-note" style="text-align:left;font-family:var(--mono);font-size:1.9vh">CHALLENGE: <b style="color:var(--text)">“Can you find the hidden flag?”</b></div>
+      <div class="s8-note">This is a <b>very simple</b> example. Real CTF challenges can require <b>much more investigation</b> and technical knowledge.</div>
+    </div>
+    <div class="s8-col rv" data-d="3">
+      <div class="s8-label"><b>STEP 1</b> — inspect the source code</div>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span>view-source:index.html</span></div>
+        <div class="codebox"><span class="cm">&lt;html&gt;</span>
+  <span class="cm">&lt;h1&gt;</span>Welcome!<span class="cm">&lt;/h1&gt;</span>
+
+  <span class="cm">&lt;!--</span>  <span class="hl">flag{inspect_the_code}</span>  <span class="cm">--&gt;</span>
+
+<span class="cm">&lt;/html&gt;</span></div>
+      </div>
+    </div>
+    <div class="s8-col rv" data-d="4">
+      <div class="s8-label"><b>STEP 2</b> — discover the hidden comment<br><b>STEP 3</b> — submit the flag</div>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span>submit-flag</span></div>
+        <div class="submitbox">SUBMIT:
+<span class="hl">flag{inspect_the_code}</span>
+
+<span class="ok">✓ Correct!</span>
+<span class="g">+100 Points</span><span class="cursor"></span></div>
+      </div>
+      <div class="s8-note" style="text-align:left">A hidden <b>HTML comment</b> is invisible on the page — but visible in the source. <b>Investigation wins.</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 9 ================= -->
+<section class="slide s9">
+  <div class="topbar"><span class="tag">08 // ETHICS</span><span class="mono">ctf://ctf-vs-reality</span></div>
+  <h2 class="title rv" data-d="1">CTF vs. <span class="hl">Real-World Hacking</span></h2>
+  <div class="vs-wrap">
+    <div class="vs-side left rv" data-d="2">
+      <div class="vs-head"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6Z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></div><h3>CTF</h3><span class="pill2">🛡 SAFE &amp; LEGAL</span></div>
+      <div class="vs-row"><span><b>Controlled environment</b> — built for practice</span></div>
+      <div class="vs-row"><span><b>Explicitly authorized</b> — you're invited to attack</span></div>
+      <div class="vs-row"><span><b>Designed for learning</b>, step by step</span></div>
+      <div class="vs-row"><span>Challenges are <b>intentional</b> by design</span></div>
+      <div class="vs-row"><span><b>Flags prove success</b> — clear goal</span></div>
+      <div class="vs-row"><span>A <b>safe place</b> to build skills</span></div>
+    </div>
+    <div class="vs-mid rv" data-d="3"><span>VS</span></div>
+    <div class="vs-side right rv" data-d="4">
+      <div class="vs-head"><div class="ic cy"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6Z"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div><h3>Real-World Hacking</h3><span class="pill2">⚠ HIGH RISK</span></div>
+      <div class="vs-row"><span><b>Real systems</b> — real users, real data</span></div>
+      <div class="vs-row"><span>May be <b>unauthorized</b> — that's a crime</span></div>
+      <div class="vs-row"><span>Can cause <b>real damage</b></span></div>
+      <div class="vs-row"><span>Vulnerabilities may be <b>accidental</b></span></div>
+      <div class="vs-row"><span><b>Goals vary</b> — often unclear</span></div>
+      <div class="vs-row"><span><b>Legal &amp; ethical boundaries</b> are critical</span></div>
+    </div>
+  </div>
+  <div class="s9-banner">
+    <div class="b1 rv" data-d="5">CTF = PRACTICE IN A CONTROLLED ENVIRONMENT</div>
+    <div class="b2 rv" data-d="6">📌 <span>Always have <b>permission</b> before testing a real system.</span></div>
+  </div>
+</section>
+
+<!-- ================= SLIDE 10 ================= -->
+<section class="slide s10">
+  <div class="topbar"><span class="tag">09 // MOTIVATION</span><span class="mono">ctf://why-play</span></div>
+  <h2 class="title rv" data-d="1">Why Should You <span class="hl">Try CTF</span>?</h2>
+  <div class="body">
+    <div class="s10-left">
+      <div class="card rv" data-d="2"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4c0 1.5-.8 2.5-1.5 3.5S13 13.5 13 15h-2c0-2 .8-3 1.5-4S14 9.2 14 8a2 2 0 0 0-4 0H8a4 4 0 0 1 4-4Z"/><circle cx="12" cy="18.5" r="1.2"/></svg></div>
+        <h3>🧠 Problem Solving</h3><p>Investigate problems &amp; think creatively.</p></div>
+      <div class="card rv" data-d="3"><div class="ic cy"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></div>
+        <h3>💻 Technical Skills</h3><p>Linux · Networking · Web security · Programming · Cryptography · Forensics</p></div>
+      <div class="card rv" data-d="4"><div class="ic"><svg viewBox="0 0 24 24"><path d="M14.5 5.5 18 9l-9.5 9.5H5V15Z"/><path d="M13 7l4 4"/></svg></div>
+        <h3>🛠️ Hands-On Experience</h3><p>Don't just learn theory — actually interact with challenges.</p></div>
+      <div class="card rv" data-d="5"><div class="ic cy"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16.5" cy="10.5" r="2.4"/><path d="M3 19c0-3 2.3-4.6 5-4.6s5 1.6 5 4.6M14 19c.2-2.4 1.6-3.6 3.5-3.6 1.6 0 3 .9 3.5 3.1"/></svg></div>
+        <h3>🤝 Teamwork</h3><p>Combine different people's skills to win together.</p></div>
+      <div class="card rv" data-d="6"><div class="ic"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0Z"/><path d="M6 6H4a2 2 0 0 0 2 4M18 6h2a2 2 0 0 1-2 4"/></svg></div>
+        <h3>🏆 Competition</h3><p>Earn points, climb leaderboards, join real competitions.</p></div>
+      <div class="card rv" data-d="7"><div class="ic cy"><svg viewBox="0 0 24 24"><path d="M12 15V4M12 4 8 8M12 4l4 4"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></div>
+        <h3>🚀 Career Development</h3><p>Build practical cybersecurity knowledge &amp; experience employers value.</p></div>
+    </div>
+    <div class="s10-right">
+      <div class="path rv" data-d="6">
+        <div class="pnode"><span class="dot2"></span> Student — basic computer skills</div>
+        <div class="pline"></div>
+        <div class="pnode"><span class="dot2"></span> First easy challenge solved</div>
+        <div class="pline"></div>
+        <div class="pnode"><span class="dot2"></span> Learning by doing, challenge by challenge</div>
+        <div class="pline"></div>
+        <div class="pnode last"><span class="dot2"></span> 🏴 Real cybersecurity skills</div>
+      </div>
+      <div class="quote rv" data-d="7">“You don't need to be a hacker to start a CTF.<br>You just need <span class="g">curiosity</span>.”</div>
+      <div class="s10-final rv" data-d="8"><span class="fp">🏴</span>Start small. Stay curious. Capture your first flag.</div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- HUD -->
+<div class="hud">
+  <div class="pagenum"><b id="cur">01</b> / <span id="tot">10</span></div>
+  <div class="dots" id="dots"></div>
+  <div class="navbtns">
+    <button onclick="go(-1)">◀ PREV</button>
+    <button onclick="go(1)">NEXT ▶</button>
+  </div>
+</div>
+
+<script>
+/* ================= deck navigation ================= */
+const slides=[...document.querySelectorAll('.slide')];
+const dotsEl=document.getElementById('dots');
+let idx=0;
+document.getElementById('tot').textContent=String(slides.length).padStart(2,'0');
+slides.forEach((_,i)=>{
+  const b=document.createElement('button');b.className='dot'+(i===0?' on':'');
+  b.onclick=()=>show(i);dotsEl.appendChild(b);
+});
+function show(i){
+  idx=(i+slides.length)%slides.length;
+  slides.forEach((s,j)=>s.classList.toggle('active',j===idx));
+  [...dotsEl.children].forEach((d,j)=>d.classList.toggle('on',j===idx));
+  document.getElementById('cur').textContent=String(idx+1).padStart(2,'0');
+}
+function go(d){show(idx+d)}
+
+/* keyboard nav — never hijack keys while typing; let focused buttons keep Space/Enter */
+document.addEventListener('keydown',e=>{
+  const t=e.target?e.target.tagName:'';
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
+  if(t==='BUTTON'&&(e.key===' '||e.key==='Enter'))return;
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  if(e.key==='Home')show(0); if(e.key==='End')show(slides.length-1);
+});
+let tx=0;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-tx;if(Math.abs(d)>60)go(d<0?1:-1)});
+
+/* ================= shared helpers ================= */
+const norm=s=>s.trim().toLowerCase().replace(/\s+/g,'');
+const rot13=s=>s.replace(/[a-zA-Z]/g,c=>{const b=c<='Z'?65:97;return String.fromCharCode((c.charCodeAt(0)-b+13)%26+b)});
+function burst(el){
+  const cols=['#00ff9c','#00d4ff','#e8f2ff'];
+  for(let i=0;i<12;i++){
+    const p=document.createElement('span');p.className='pt';
+    const a=(Math.PI*2*i)/12+(Math.random()*.5),d=50+Math.random()*60;
+    p.style.setProperty('--dx',Math.cos(a)*d+'px');
+    p.style.setProperty('--dy',Math.sin(a)*d*.6+'px');
+    p.style.background=cols[i%3];
+    p.style.left='50%';p.style.top='58%';
+    el.appendChild(p);
+  }
+  setTimeout(()=>el.querySelectorAll('.pt').forEach(x=>x.remove()),900);
+}
+function floatPts(el,txt){
+  const f=document.createElement('span');
+  f.className='float-pts';f.textContent=txt;
+  el.appendChild(f);
+  setTimeout(()=>f.remove(),1500);
+}
+
+/* ================= SLIDE 3 — interactive flag checker ================= */
+const CORRECT_FLAG='flag{inspect_the_source}';
+let attempts=0,busy=false;
+const fIn=document.getElementById('flagInput'),
+      fEcho=document.getElementById('flagEcho'),
+      fVer=document.getElementById('flagVerdict'),
+      fHint=document.getElementById('flagHint'),
+      sTerm=document.getElementById('submitTerm'),
+      scoreEl=document.getElementById('scoreVal');
+
+fIn.addEventListener('keydown',e=>{if(e.key==='Enter')submitFlag()});
+fIn.addEventListener('input',()=>fIn.classList.remove('err'));
+sTerm.addEventListener('click',()=>fIn.focus());
+
+function setScore(delta){
+  const target=(parseInt(scoreEl.dataset.v)||0)+delta;
+  scoreEl.dataset.v=target;
+  let cur=parseInt(scoreEl.textContent)||0;
+  const iv=setInterval(()=>{
+    cur+=(target>cur?5:-5);
+    if((target>cur&&cur>=target)||(target<cur&&cur<=target)){cur=target;clearInterval(iv)}
+    scoreEl.textContent=cur;
+  },30);
+}
+function submitFlag(){
+  if(busy)return;
+  const raw=fIn.value;
+  if(!raw.trim()){
+    fIn.classList.add('err');setTimeout(()=>fIn.classList.remove('err'),600);
+    fIn.focus();return;
+  }
+  busy=true;
+  sTerm.classList.remove('correct','wrong');
+  fVer.className='verdict';fHint.textContent='';
+  fEcho.innerHTML='';
+  const line=document.createElement('div');
+  const p=document.createElement('span');p.className='ps1';p.textContent='$ ';
+  line.appendChild(p);
+  line.appendChild(document.createTextNode('submit '));
+  const u=document.createElement('span');u.className='u';u.textContent=raw;
+  line.appendChild(u);
+  fEcho.appendChild(line);
+
+  const v=norm(raw);
+  setTimeout(()=>{
+    if(v===CORRECT_FLAG) onCorrect();
+    else onWrong(v.includes('inspect_the_source'));
+  },300);
+}
+function onCorrect(){
+  sTerm.classList.add('correct');
+  fVer.classList.add('ok');
+  fVer.textContent='[✓] Correct! +100 points awarded';
+  setScore(100);burst(sTerm);floatPts(sTerm,'+100 PTS 🏴');
+  const fb=document.getElementById('flagBig');
+  fb.classList.add('won');
+  setTimeout(()=>fb.classList.remove('won'),1500);
+  attempts=0;fIn.value='';
+  setTimeout(()=>{fIn.focus();busy=false},500);
+}
+function onWrong(close){
+  sTerm.classList.add('wrong');
+  fVer.classList.add(close?'info':'no');
+  fVer.textContent=close
+    ?'[!] So close! Keep the flag{ ... } format.'
+    :'[✗] Wrong flag — keep investigating!';
+  attempts++;
+  if(attempts>=2){
+    setTimeout(()=>{fHint.textContent='[i] Hint: the flag is hidden in an HTML comment — check view-source ↑'},900);
+  }
+  fIn.value='';
+  setTimeout(()=>{sTerm.classList.remove('wrong');fIn.focus();busy=false},700);
+}
+function resetDemo(){
+  attempts=0;busy=false;
+  fIn.value='';fEcho.innerHTML='';
+  fVer.className='verdict';fVer.textContent='';
+  fHint.textContent='';
+  sTerm.classList.remove('correct','wrong');
+  scoreEl.dataset.v=0;scoreEl.textContent=0;
+  fIn.focus();
+}
+
+/* ================= SLIDE 6 — TOOLBOX man-pages ================= */
+const TOOL_INFO={
+  devtools:['Browser DevTools','Press F12 in any browser. The Elements tab shows the live HTML — hidden comments, debug code, and endpoints. The Network tab shows every request a page makes. Free, built-in, and your #1 web starter tool.'],
+  burp:['Burp Suite','A proxy that sits between your browser and the server, letting you pause, read, and rewrite web requests. The Community edition is free — it is an industry standard for web security work.'],
+  gobuster:['gobuster / dirsearch','Websites often have hidden pages (/admin, /backup, /flag.txt). These tools automatically try thousands of common paths and report which ones exist.'],
+  cyberchef:['CyberChef',"The 'Cyber Swiss Army Knife' — a free web app. Base64? Hex? ROT13? Nested encodings? Drag operations together and watch your data decode live. No install needed."],
+  dcode:['dCode.fr','A huge collection of classical cipher solvers. Paste a strange encoded string and it suggests which cipher it might be — and solves it.'],
+  john:['John the Ripper / hashcat','When a challenge gives you a password HASH (a one-way scrambled fingerprint), these tools try millions of candidate passwords to find the original. hashcat uses your GPU — extremely fast.'],
+  strings:['strings & xxd','Two terminal classics. strings prints every readable text inside a file; xxd shows the raw bytes next to their text. Flags hidden in files are usually found here first.'],
+  binwalk:['binwalk','Scans a file for embedded data — a ZIP inside a JPG, firmware images, compressed blobs. Run binwalk -e to auto-extract whatever it finds.'],
+  wireshark:['Wireshark','Captures and dissects network traffic. In CTF "pcap" challenges, flags hide inside packets — Wireshark\u2019s search and filters locate them.'],
+  ghidra:['Ghidra','A free decompiler — made by the NSA! It translates compiled binaries back into readable C-like code, turning reversing challenges from unreadable machine code into something you can study.'],
+  strace:['strace / ltrace','Run a program and watch every system call it makes — files opened, strings compared, network used. Perfect for spotting WHERE the flag check happens.'],
+  objdump:['objdump & file','Quick terminal inspection: file tells you what kind of file you have; objdump lists its functions and assembly. The fast first look before deeper analysis.'],
+  gdb:['gdb + pwndbg','The classic debugger. With the free pwndbg (or GEF) plugin it becomes CTF-friendly: view the stack, memory, and registers while the program runs — exactly what the Mini Arena overflow challenge simulates.'],
+  pwntools:['pwntools','A Python framework for writing exploits: connect to services, build payloads, and automate the repetitive parts. The standard toolkit for pwn players.'],
+  checksec:['checksec','One command that lists a binary\u2019s protections (NX, PIE, stack canary\u2026). It is the first thing you run on any pwn challenge to know what defenses you face.'],
+  dorks:['Google Dorks','Advanced search operators: site:, filetype:pdf, "exact phrase", -exclude. They find public information that normal searches miss — pure OSINT, no hacking required.'],
+  shodan:['Shodan','A search engine for devices connected to the internet — servers, cameras, IoT gadgets. In OSINT challenges it helps research exposed infrastructure ethically.'],
+  whois:['WHOIS / ExifTool','WHOIS reveals public domain registration data (owner, dates, registrar). ExifTool reads photo metadata — camera model, timestamps, sometimes GPS coordinates.']
+};
+const manOut=document.getElementById('manOut');
+document.querySelectorAll('.toolrow').forEach(row=>{
+  row.addEventListener('click',()=>{
+    document.querySelectorAll('.toolrow').forEach(r=>r.classList.remove('sel'));
+    row.classList.add('sel');
+    const [name,desc]=TOOL_INFO[row.dataset.tool];
+    manOut.innerHTML=`<span class="mn">$ man ${name.toLowerCase().replace(/[^a-z0-9]+/g,'-')}</span>\n<span class="mg">${name}</span><span class="md"> — ${desc}</span>`;
+  });
+});
+
+/* ================= SLIDE 7 — MINI CTF ARENA (2 LEVELS, 12 CHALLENGES) ================= */
+const ARENA={
+  solved:{}, score:0, hintsUsed:{}, curLvl:'l1', curId:'web',
+  data:{
+    l1:{
+      web:{
+        tag:'🌐 WEB',label:'View Source',pts:100,
+        title:'Challenge 1 · The Suspicious Login Page',
+        brief:'A mock bank website is hiding something. Websites are just text — go look.',
+        flag:'flag{v13w_s0urc3_r0cks}',
+        hints:['Browsers can show you the source code of any page (right-click → View Page Source).','HTML comments <!-- like this --> are invisible on the page but visible in the source. Click the button!'],
+        build(st){
+          st.innerHTML=`
+          <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>http://novabank.ctf.local/login</span></div>
+          <div class="mocksite" style="font-size:2vh;padding:1.8vh 1em">NOVABANK — ONLINE BANKING<br><span class="warn">Totally secure. Nothing to see here...</span><br><span class="btn">[ LOGIN ]</span></div></div>
+          <div class="submit-actions"><button class="sbtn" id="wSrc">👁 VIEW PAGE SOURCE</button></div>
+          <div class="codebox2" id="wBox" style="display:none">&lt;html&gt;
+  &lt;title&gt;NovaBank&lt;/title&gt;
+  <span class="cm">&lt;!-- TODO: remove debug flag before launch! --&gt;</span>
+  <span class="cm">&lt;!--</span> <span class="hl">flag{v13w_s0urc3_r0cks}</span> <span class="cm">--&gt;</span>
+  &lt;form&gt; ...login form... &lt;/form&gt;
+&lt;/html&gt;</div>`;
+          document.getElementById('wSrc').onclick=()=>{
+            const b=document.getElementById('wBox');
+            b.style.display=(b.style.display==='none')?'block':'none';
+          };
+        }
+      },
+      crypto:{
+        tag:'🔐 CRYPTO',label:'Caesar Dial',pts:150,
+        title:'Challenge 2 · The Scrambled Message',
+        brief:'Every letter was shifted by the same number in the alphabet. Turn the dial to decode it.',
+        flag:'flag{caesar_cipher_is_fun}',
+        hints:['This is a Caesar cipher: each letter moves N steps forward. Symbols { } _ stay unchanged.','The most famous shift is 13 — "ROT13". Keep stepping the dial until real words appear.'],
+        build(st){
+          const CT='synt{pnrfne_pvcure_vf_sha}';
+          st.innerHTML=`
+          <div class="ct" id="l1ct">🔒 ${CT}</div>
+          <div class="shiftrow">
+            <button class="sbtn" id="shL">◀</button>
+            <span>SHIFT = <b id="shV" class="g">0</b></span>
+            <button class="sbtn" id="shR">▶</button>
+            <span style="color:var(--muted);font-size:1.5vh">a→a+shift &nbsp;b→b+shift …</span>
+          </div>
+          <div class="dec" id="decOut">&nbsp;</div>
+          <div class="mini-out" style="min-height:0;font-size:1.5vh;color:var(--muted)">The Caesar cipher is ~2000 years old — Julius Caesar used it for secret messages. Cracking it = finding the right shift.</div>`;
+          let k=0;
+          const dec=s=>s.replace(/[a-z]/g,c=>String.fromCharCode((c.charCodeAt(0)-97+k)%26+97));
+          const upd=()=>{
+            const o=document.getElementById('decOut');
+            o.textContent='🔓 '+dec(CT);
+            o.classList.toggle('hit',k===13);
+            document.getElementById('shV').textContent=k;
+          };
+          document.getElementById('shL').onclick=()=>{k=(k+25)%26;upd()};
+          document.getElementById('shR').onclick=()=>{k=(k+1)%26;upd()};
+          upd();
+        }
+      },
+      forensics:{
+        tag:'🔎 FORENSICS',label:'Hidden in a Photo',pts:150,
+        title:'Challenge 3 · The Talking Photo',
+        brief:'This image looks completely normal… but files carry extra data. Examine it like an investigator.',
+        flag:'flag{data_hides_in_plain}',
+        hints:['Images are just files full of bytes — some of them spell readable text.','The "strings" tool prints every readable text inside a file. The "xxd" tool shows raw bytes + text. Run both!'],
+        build(st){
+          st.innerHTML=`
+          <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>file-manager</span></div>
+          <div class="mocksite" style="font-size:2vh;padding:1.8vh 1em">🌅 <b style="color:var(--text)">sunset.jpg</b><br><span class="warn">42 KB — JPEG image data<br>Looks completely normal…</span></div></div>
+          <div class="submit-actions">
+            <button class="sbtn" id="fStr">⌨ RUN strings sunset.jpg</button>
+            <button class="sbtn" id="fHex">⌨ RUN xxd sunset.jpg</button>
+          </div>
+          <div class="mini-out" id="fOut">[~] output will appear here…</div>`;
+          const out=document.getElementById('fOut');
+          document.getElementById('fStr').onclick=()=>{
+            const lines=['JFIF standard 1.01','Adobe Photoshop 7.0','8BIM','ICC_PROFILE','...scan complete — 1 interesting string found:','🚩 flag{data_hides_in_plain}'];
+            out.textContent='';
+            lines.forEach((l,i)=>setTimeout(()=>{out.textContent+=l+'\n';out.scrollTop=1e5},i*330));
+          };
+          document.getElementById('fHex').onclick=()=>{
+            out.textContent='00000000  ffd8 ffe0 0010 4a46 4946 0001 0100  |......JFIF....|\n'
+              +'00000010  0101 0058 0058 0000 8643 0000       |...X.X...C..|\n'
+              +'...\n'
+              +'00000260  666c 6167 7b64 6174 615f 6869 6465 735f  |flag{data_hides_|\n'
+              +'00000270  696e 5f70 6c61 696e 7dff                |in_plain}|...|';
+            out.scrollTop=1e5;
+          };
+        }
+      },
+      reversing:{
+        tag:'💻 REVERSING',label:'Crack the Password',pts:200,
+        title:'Challenge 4 · Read the Program',
+        brief:'This tiny program only opens for ONE password. Read the code — what does it check?',
+        flag:'flag{perfect}',
+        hints:['secret[::-1] is Python for "the string REVERSED".','So the password is "tcefrep" written backwards: p-e-r-f-e-c-t. Type it and RUN!'],
+        build(st){
+          st.innerHTML=`
+          <div class="codebox2"><span class="cm"># crackme.py</span>
+secret = <span class="s">"tcefrep"</span>
+pw = input(<span class="s">"password: "</span>)
+<span class="k">if</span> pw == secret[::-1]:   <span class="cm"># [::-1] = reversed!</span>
+    print(<span class="s">"ACCESS GRANTED"</span>)
+    print(<span class="s">"flag{"</span> + pw + <span class="s">"}"</span>)
+<span class="k">else</span>:
+    print(<span class="s">"ACCESS DENIED"</span>)</div>
+          <div class="promptline" style="font-size:1.8vh"><span class="ps1">python3</span><span class="ps1cmd">crackme.py</span>
+            <input id="revIn" class="flag-input" placeholder="enter password…" style="font-size:1.7vh"></div>
+          <div class="submit-actions"><button class="sbtn" id="revRun">▶ RUN PROGRAM</button></div>
+          <div class="mini-out" id="revOut">[~] program output…</div>`;
+          const inp=document.getElementById('revIn'),out=document.getElementById('revOut');
+          const run=()=>{
+            const v=inp.value.trim();
+            if(v==='perfect'){
+              out.innerHTML='<span class="ok">ACCESS GRANTED</span>\nflag{perfect}';
+            }else{
+              out.innerHTML='<span class="r">ACCESS DENIED</span>'+(v?`   (you tried: ${v.replace(/</g,'&lt;')})`:'   (empty input)');
+            }
+          };
+          document.getElementById('revRun').onclick=run;
+          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();run()}});
+        }
+      },
+      pwn:{
+        tag:'🐛 PWN',label:'Buggy Scoreboard',pts:150,
+        title:'Challenge 5 · The Buggy Arcade',
+        brief:'This arcade game asks YOU to report your own final score. Honest players type 100… but who checks?',
+        flag:'flag{n3v3r_trust_cl13nt}',
+        hints:['Read the code: the "server" takes whatever score you type and believes it blindly.','Type a huge number — 9999 or more — as your score. The program hands the flag to its new "legend".'],
+        build(st){
+          st.innerHTML=`
+          <div class="codebox2"><span class="cm"># arcade.py — the server trusts your report!</span>
+score = int(input(<span class="s">"report your final score: "</span>))
+<span class="k">if</span> score &gt;= 9999:
+    print(<span class="s">"👑 LEGEND MODE — flag unlocked"</span>)
+    print(<span class="s">"flag{n3v3r_trust_cl13nt}"</span>)
+<span class="k">else</span>:
+    print(<span class="s">"nice try… keep playing"</span>)</div>
+          <div class="promptline" style="font-size:1.8vh"><span class="ps1">python3</span><span class="ps1cmd">arcade.py</span>
+            <input id="pnwIn" class="flag-input" placeholder="your score…" style="font-size:1.7vh"></div>
+          <div class="submit-actions"><button class="sbtn" id="pnwRun">▶ RUN PROGRAM</button></div>
+          <div class="mini-out" id="pnwOut">[~] waiting for your score…</div>
+          <div class="memcap">💡 Real games NEVER trust the client — the server must compute the score itself. That bug is the whole challenge.</div>`;
+          const inp=document.getElementById('pnwIn'),out=document.getElementById('pnwOut');
+          const run=()=>{
+            const n=parseInt(inp.value,10);
+            if(isNaN(n)){out.innerHTML='<span class="r">ERROR:</span> that is not a number.';return}
+            if(n>=9999){
+              out.innerHTML='<span class="ok">👑 LEGEND MODE — flag unlocked</span>\n🏴 flag{n3v3r_trust_cl13nt}';
+            }else{
+              out.innerHTML=`"nice try… keep playing"   (your reported score: ${n})`;
+            }
+          };
+          document.getElementById('pnwRun').onclick=run;
+          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();run()}});
+        }
+      },
+      osint:{
+        tag:'🕵️ OSINT',label:'Find the Post',pts:100,
+        title:'Challenge 6 · Public Information',
+        brief:'A new intern just posted about winning their first CTF. Open the public profiles and find that post.',
+        flag:'flag{0s1nt_1s_0p3n}',
+        hints:['OSINT = Open-Source INTELLIGENCE: using only PUBLIC information — no hacking needed.','Click each profile card to read its public posts. Who mentions CTFs and NovaCorp?'],
+        build(st){
+          st.innerHTML=`
+          <div class="oi-grid">
+            <div class="oi"><div class="hd"><span class="av">🍳</span>@marta.cooks</div><div class="bio">Food blogger • recipes daily</div>
+              <div class="more">— latest post —<br>"Avocado toast ranking, part 12 🥑<br>No flags here. Just brunch."</div></div>
+            <div class="oi"><div class="hd"><span class="av">🏃</span>@dave_runs</div><div class="bio">Marathoner • 3:45 PB</div>
+              <div class="more">— latest post —<br>"Leg day destroyed me 💀<br>Definitely not a security person."</div></div>
+            <div class="oi"><div class="hd"><span class="av">🛠️</span>@liam.builds</div><div class="bio">Security intern @ NovaCorp</div>
+              <div class="more">— latest post —<br>"Solved my FIRST CTF today!! 🏴<br><span class="g">flag{0s1nt_1s_0p3n}</span><br>Public info is powerful — use it ethically!"</div></div>
+          </div>
+          <div class="mini-out" style="min-height:0;font-size:1.5vh;color:var(--muted)">🖱 Click a profile to open its public posts…</div>`;
+          st.querySelectorAll('.oi').forEach(c=>c.onclick=()=>{
+            st.querySelectorAll('.oi').forEach(x=>x.classList.remove('open','hit'));
+            c.classList.add('open');
+            if(c.textContent.includes('flag{'))c.classList.add('hit');
+          });
+        }
+      }
+    },
+    l2:{
+      web:{
+        tag:'🌐 WEB',label:'SQL Login',pts:300,
+        title:'Challenge 7 · The Admin Login',
+        brief:'This login builds its SQL query by gluing your text straight in. A single quote can break out…',
+        flag:'flag{sql_qu3ry_3scap3d}',
+        hints:["The query pastes your input directly into SQL. What could a ' (single quote) do inside a quoted string?","Classic payload — put ' OR 1=1 -- in the password field. The ' closes the string, OR 1=1 is always TRUE, and -- comments away the rest."],
+        build(st){
+          st.innerHTML=`
+          <div class="codebox2"><span class="cm"># login.php — simplified &amp; vulnerable on purpose</span>
+q = <span class="s">"SELECT * FROM users WHERE user='…' AND pass='…'"</span>
+<span class="k">if</span> query_returns_a_row(q): grant_admin_access()</div>
+          <div class="promptline" style="font-size:1.8vh">
+            <span class="ps1">user</span><input id="sqU" class="flag-input" placeholder="username" style="font-size:1.6vh;max-width:12em">
+            <span class="ps1">pass</span><input id="sqP" class="flag-input" placeholder="password" style="font-size:1.6vh;max-width:12em">
+          </div>
+          <div class="submit-actions"><button class="sbtn" id="sqGo">🔑 LOGIN</button></div>
+          <div class="mini-out" id="sqQ" style="min-height:0;color:var(--cyan)">[~] query preview…</div>
+          <div class="mini-out" id="sqOut" style="min-height:5vh">[~] result…</div>`;
+          const u=document.getElementById('sqU'),p=document.getElementById('sqP'),
+                q=document.getElementById('sqQ'),o=document.getElementById('sqOut');
+          const go=()=>{
+            q.textContent=`SELECT * FROM users WHERE user='${u.value}' AND pass='${p.value}'`;
+            const both=u.value+p.value;
+            const evil=/'/.test(both)&&(/--/.test(both)||/1\s*=\s*1/i.test(both)||/or\s+'/i.test(both));
+            if(evil){
+              o.innerHTML='<span class="ok">✔ 1 row returned — ACCESS GRANTED, welcome admin!</span>\n🏴 flag{sql_qu3ry_3scap3d}';
+            }else{
+              o.innerHTML='<span class="r">✗ 0 rows — LOGIN FAILED</span>   (wrong credentials… or is it?)';
+            }
+          };
+          document.getElementById('sqGo').onclick=go;
+          [u,p].forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();go()}}));
+        }
+      },
+      crypto:{
+        tag:'🔐 CRYPTO',label:'Double Layer',pts:250,
+        title:'Challenge 8 · Double Encoded',
+        brief:'Two operations were applied: ROT13, then Base64. Peel them off — but ORDER matters!',
+        flag:'flag{dec0de_1n_r3v3rs3}',
+        hints:['Encryption wrapped the flag in layers: first ROT13, then Base64. To UNDO layers, always work in reverse order.','So: apply BASE64 DECODE first, then ROT13. Doing ROT13 on base64 text corrupts it (and it stops being valid base64!).'],
+        build(st){
+          let cur=btoa(rot13('flag{dec0de_1n_r3v3rs3}')),ops=[];
+          st.innerHTML=`
+          <div class="ct" id="lCt">🔒 ${cur}</div>
+          <div class="shiftrow">
+            <button class="sbtn" id="opB64">⇩ BASE64 DECODE</button>
+            <button class="sbtn" id="opR13">⇄ ROT13</button>
+          </div>
+          <div class="dec" id="lDec">${cur}</div>
+          <div class="opsline" id="lOps">layers peeled: none</div>
+          <div class="mini-out" style="min-height:0;font-size:1.5vh;color:var(--muted)">🧅 Think onion: the LAST layer applied must be the FIRST removed. If a button "fails", you picked the wrong order.</div>`;
+          const d=document.getElementById('lDec'),ct=document.getElementById('lCt'),op=document.getElementById('lOps');
+          const upd=msg=>{
+            d.textContent=cur;ct.textContent=cur.includes('flag{')?'🏴 '+cur:'🔒 '+cur;
+            ct.classList.toggle('hit',cur.includes('flag{'));
+            d.classList.toggle('hit',cur.includes('flag{'));
+            op.textContent='layers peeled: '+(ops.length?ops.join(' → '):'none')+(msg?'  '+msg:'');
+          };
+          document.getElementById('opB64').onclick=()=>{
+            try{cur=atob(cur);ops.push('b64');upd(cur.includes('flag{')?'✅ flag uncovered — submit it!':'')}catch(e){ops.push('b64✗');upd('⚠ not valid base64 — wrong order?')}
+          };
+          document.getElementById('opR13').onclick=()=>{cur=rot13(cur);ops.push('rot13');upd(cur.includes('flag{')?'✅ flag uncovered — submit it!':'')};
+          upd();
+        }
+      },
+      forensics:{
+        tag:'🔎 FORENSICS',label:'Nested File',pts:300,
+        title:'Challenge 9 · The Nested Photo',
+        brief:'photo.png refuses to open in the viewer. Trust nothing — interrogate the file itself.',
+        flag:'flag{a_zip_1n_my_png}',
+        hints:["Never trust a filename or a preview — ask the 'file' command what the bytes REALLY are.","It is secretly a ZIP. Extract it (binwalk -e or unzip), then read the file inside with cat."],
+        build(st){
+          st.innerHTML=`
+          <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>analyst@ctf:~/evidence</span></div>
+          <div class="mocksite" style="font-size:2vh;padding:1.6vh 1em">🖼 <b style="color:var(--text)">photo.png</b> <span class="warn">— 61 KB · viewer says: "corrupt image?"</span></div></div>
+          <div class="submit-actions">
+            <button class="sbtn" id="nF">⌨ file photo.png</button>
+            <button class="sbtn" id="nB" disabled>⌨ binwalk -e photo.png</button>
+            <button class="sbtn" id="nC" disabled>⌨ cat flag.txt</button>
+          </div>
+          <div class="mini-out" id="nOut">[~] interrogate the file — start with 'file'…</div>`;
+          const out=document.getElementById('nOut'),
+                bB=document.getElementById('nB'),bC=document.getElementById('nC');
+          const say=t=>{out.textContent+=t+'\n';out.scrollTop=1e5};
+          document.getElementById('nF').onclick=()=>{
+            say('$ file photo.png');
+            say('photo.png: PNG image data, 800x600 …');
+            say('⚠ BUT ALSO: Zip archive data (offset 4210) — mismatch!');
+            bB.disabled=false;
+          };
+          bB.onclick=()=>{
+            say('$ binwalk -e photo.png');
+            say('[+] extracted: photo.png.extracted/ → secret.zip → flag.txt');
+            bC.disabled=false;
+          };
+          bC.onclick=()=>{
+            say('$ cat flag.txt');
+            say('🚩 flag{a_zip_1n_my_png}');
+          };
+        }
+      },
+      reversing:{
+        tag:'💻 REVERSING',label:'The Vault',pts:350,
+        title:'Challenge 10 · The 4-Letter Vault',
+        brief:'Four math checks guard this vault. Each one hides exactly ONE character of the key.',
+        flag:'flag{m4th_is_h4rd}',
+        hints:["ord() turns a character into its ASCII number; chr() does the reverse. Solve each line for one single character.","Worked example, line 1: ord(pw[0])+1==110 → ord=109 → chr(109)='m'. Now finish the other three the same way."],
+        build(st){
+          st.innerHTML=`
+          <div class="codebox2"><span class="cm"># vault.py — 4 conditions, 4 hidden characters</span>
+pw = input(<span class="s">"key: "</span>)
+ok = (len(pw) == 4
+  <span class="k">and</span> ord(pw[0]) + 1 == 110   <span class="cm"># ?</span>
+  <span class="k">and</span> ord(pw[1]) * 2 == 104   <span class="cm"># ?</span>
+  <span class="k">and</span> ord(pw[2])      == 116  <span class="cm"># ?</span>
+  <span class="k">and</span> ord(pw[3]) - 5 == 99)   <span class="cm"># ?</span>)
+<span class="k">if</span> ok: print(<span class="s">"VAULT OPEN → flag{"</span> + pw + <span class="s">"_is_h4rd}"</span>)
+<span class="k">else</span>:  print(<span class="s">"VAULT SEALED"</span>)</div>
+          <div class="promptline" style="font-size:1.8vh"><span class="ps1">python3</span><span class="ps1cmd">vault.py</span>
+            <input id="vIn" class="flag-input" placeholder="4-letter key…" style="font-size:1.7vh;max-width:14em"></div>
+          <div class="submit-actions"><button class="sbtn" id="vRun">▶ RUN PROGRAM</button></div>
+          <div class="mini-out" id="vOut">[~] the vault awaits…</div>
+          <div class="memcap">ASCII cheat: a=97 · m=109 · t=116 · 4=52 · 0=48</div>`;
+          const inp=document.getElementById('vIn'),out=document.getElementById('vOut');
+          const run=()=>{
+            const v=inp.value;
+            if(v==='m4th'){out.innerHTML='<span class="ok">VAULT OPEN</span>\n🏴 flag{m4th_is_h4rd}'}
+            else{out.innerHTML='<span class="r">VAULT SEALED</span>'+(v?`   (you tried: ${v.replace(/</g,'&lt;')} — which line failed?)`:'   (empty key)')}
+          };
+          document.getElementById('vRun').onclick=run;
+          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();run()}});
+        }
+      },
+      pwn:{
+        tag:'🐛 PWN',label:'Overflow',pts:400,
+        title:'Challenge 11 · The Classic Overflow',
+        brief:'The name box holds only 8 characters… and is_admin sits RIGHT NEXT to it in memory.',
+        flag:'flag{buff3r_0v3rfl0w}',
+        hints:['Watch the memory cells below while you type. Where do the 9th, 10th… characters go?','Type MORE than 8 characters — the extra letters spill into the is_admin cell and turn you into admin!'],
+        build(st){
+          st.innerHTML=`
+          <div class="codebox2"><span class="cm">// login.c  (simplified — a real classic!)</span>
+<span class="k">char</span> name[<span class="s">8</span>];      <span class="cm">// only 8 letters fit!</span>
+<span class="k">int</span>  is_admin = <span class="s">0</span>; <span class="cm">// stored right AFTER name</span>
+gets(name);         <span class="cm">// danger: no length check</span>
+<span class="k">if</span> (is_admin) print(FLAG)</div>
+          <div class="promptline" style="font-size:1.8vh"><span class="ps1">./login</span><span class="ps1cmd">name:</span>
+            <input id="pwnIn" class="flag-input" placeholder="type a name…" style="font-size:1.7vh"></div>
+          <div class="mem" id="pwnMem"></div>
+          <div class="memcap">▪ slots 1–8: name buffer &nbsp;&nbsp;▪ last cell: is_admin (0 = false)</div>
+          <div class="submit-actions"><button class="sbtn" id="pwnRun">▶ RUN</button></div>
+          <div class="mini-out" id="pwnOut">[~] waiting for input…</div>`;
+          const mem=document.getElementById('pwnMem'),inp=document.getElementById('pwnIn'),out=document.getElementById('pwnOut');
+          const draw=v=>{
+            let h='';
+            for(let i=0;i<8;i++){h+=`<div class="cell ${v[i]?'':'dim'}">${v[i]||'·'}</div>`}
+            h+=`<div class="cell adm ${v.length>8?'set':''}">${v.length>8?'1':'0'}</div>`;
+            mem.innerHTML=h;
+          };
+          inp.addEventListener('input',()=>draw(inp.value));
+          const run=()=>{
+            const v=inp.value;
+            if(v.length>8){
+              mem.querySelectorAll('.cell')[7]?.classList.add('ovf');
+              out.innerHTML=`<span class="ok">Hello, ${v.slice(0,12).replace(/</g,'&lt;')}… — access level: ADMIN 😱</span>\n🏴 FLAG RECOVERED: flag{buff3r_0v3rfl0w}`;
+            }else{
+              out.innerHTML=`Hello, ${(v||'guest').replace(/</g,'&lt;')} — access level: <span class="c">user</span>. Nothing happened… yet.`;
+            }
+          };
+          document.getElementById('pwnRun').onclick=run;
+          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();run()}});
+          draw('');
+        }
+      },
+      osint:{
+        tag:'🕵️ OSINT',label:'Deep Dig',pts:250,
+        title:'Challenge 12 · Chain of Clues',
+        brief:'The flag is behind a PRIVATE account. Public announcements sometimes unlock doors…',
+        flag:'flag{f0ll0w_th3_tr41l}',
+        hints:['Information across accounts connects. Start with the company account — who did they just announce?','The announcement names @pixel_pete — click the mention to unlock his private account, then read his post.'],
+        build(st){
+          st.innerHTML=`
+          <div class="oi-grid">
+            <div class="oi" id="osCo"><div class="hd"><span class="av">🏢</span>@novacorp.news</div><div class="bio">Official NovaCorp account</div>
+              <div class="more">— pinned announcement —<br>"🎉 Please welcome our new SECURITY LEAD, Peter V.!<br>Give his personal account a follow: <span class="taglink" id="osLink">@pixel_pete</span> 🔗"</div></div>
+            <div class="oi locked" id="osPete"><div class="hd"><span class="av">📷</span>@pixel_pete</div><div class="bio">Photographer &amp; tinkerer</div>
+              <div class="more" id="osPeteMore">🔒 This account is private.</div></div>
+            <div class="oi"><div class="hd"><span class="av">📸</span>@lens.lola</div><div class="bio">Wedding photographer</div>
+              <div class="more">— latest post —<br>"Golden hour never disappoints 🌇<br>Bookings open for June!"</div></div>
+            <div class="oi"><div class="hd"><span class="av">🎮</span>@grumpy.gamer</div><div class="bio">Retro games &amp; rants</div>
+              <div class="more">— latest post —<br>"Pixel art peaked in 1998. Fight me."<br>(no flags here — just nostalgia)</div></div>
+          </div>
+          <div class="mini-out" id="osLog" style="min-height:0;font-size:1.5vh;color:var(--muted)">🖱 Open @novacorp.news — the company often links its people…</div>`;
+          const log=document.getElementById('osLog'),pete=document.getElementById('osPete'),
+                peteMore=document.getElementById('osPeteMore');
+          const openCard=c=>{st.querySelectorAll('.oi').forEach(x=>x.classList.remove('open','hit'));c.classList.add('open');if(c.textContent.includes('flag{'))c.classList.add('hit')};
+          document.getElementById('osCo').onclick=e=>{openCard(document.getElementById('osCo'));if(e.target.id==='osLink'){pete.classList.remove('locked');pete.classList.add('unlockable');peteMore.innerHTML='— latest post —<br>"New job, first week done 🎉 My old hobby finally became my career. To celebrate, a gift for curious minds:<br><span class="g">flag{f0ll0w_th3_tr41l}</span><br>Follow the trail — ethically!"';log.innerHTML='🔓 @pixel_pete unlocked via @novacorp.news — open his profile now.';log.style.color='var(--green)'}};
+          pete.onclick=()=>openCard(pete);
+          st.querySelectorAll('.oi').forEach(c=>{if(c.id!=='osCo'&&c.id!=='osPete')c.onclick=()=>openCard(c)});
+        }
+      }
+    }
+  }
+};
+
+const tabsEl=document.getElementById('arenaTabs'),
+      chSide=document.getElementById('chSide'),
+      chIn=document.getElementById('chInput'),
+      chEcho=document.getElementById('chEcho'),
+      chVer=document.getElementById('chVer'),
+      chHintBox=document.getElementById('chHintBox'),
+      chHintBtn=document.getElementById('chHint'),
+      lvl1Btn=document.getElementById('lvl1Btn'),
+      lvl2Btn=document.getElementById('lvl2Btn');
+
+function countLevel(l){return Object.keys(ARENA.solved).filter(k=>k.startsWith(l+':')).length}
+
+function buildTabs(){
+  tabsEl.innerHTML='';
+  Object.entries(ARENA.data[ARENA.curLvl]).forEach(([id,d])=>{
+    const b=document.createElement('button');
+    b.className='atab'+(ARENA.solved[ARENA.curLvl+':'+id]?' done':'');
+    b.dataset.id=id;
+    b.innerHTML=`<span class="chk">✔</span><span class="t1">${d.tag}</span><span class="t2">${d.label}</span><span class="t3">+${d.pts} pts</span>`;
+    b.onclick=()=>openCh(ARENA.curLvl,id);
+    tabsEl.appendChild(b);
+  });
+}
+
+function openCh(lvl,id){
+  ARENA.curLvl=lvl;ARENA.curId=id;
+  lvl1Btn.classList.toggle('on',lvl==='l1');
+  lvl2Btn.classList.toggle('on',lvl==='l2');
+  const d=ARENA.data[lvl][id];
+  buildTabs();
+  document.getElementById('chTitle').textContent=d.title;
+  document.getElementById('chBrief').textContent=d.brief;
+  document.getElementById('chPts').textContent='+'+d.pts+' PTS';
+  d.build(document.getElementById('chStage'));
+  chIn.value='';chEcho.innerHTML='';
+  chVer.className='verdict';chVer.textContent='';
+  chSide.classList.remove('correct','wrong');
+  updateHint();
+}
+lvl1Btn.onclick=()=>openCh('l1','web');
+lvl2Btn.onclick=()=>openCh('l2','web');
+
+function updateHint(){
+  const d=ARENA.data[ARENA.curLvl][ARENA.curId],used=ARENA.hintsUsed[ARENA.curLvl+':'+ARENA.curId]||0;
+  chHintBtn.textContent=used<d.hints.length?`💡 HINT (${used+1}/${d.hints.length})`:'💡 NO MORE HINTS';
+  chHintBtn.disabled=used>=d.hints.length;
+  chHintBox.innerHTML=d.hints.slice(0,used).map(h=>'▸ '+h).join('<br>')||'';
+}
+chHintBtn.onclick=()=>{
+  const k=ARENA.curLvl+':'+ARENA.curId,d=ARENA.data[ARENA.curLvl][ARENA.curId],used=ARENA.hintsUsed[k]||0;
+  if(used<d.hints.length){ARENA.hintsUsed[k]=used+1;updateHint()}
+};
+document.getElementById('chReset').onclick=()=>{
+  chIn.value='';chEcho.innerHTML='';
+  chVer.className='verdict';chVer.textContent='';
+  chSide.classList.remove('correct','wrong');chIn.focus();
+};
+chIn.addEventListener('keydown',e=>{if(e.key==='Enter')submitCh()});
+chIn.addEventListener('input',()=>chIn.classList.remove('err'));
+
+function updateArenaScore(){
+  const n1=countLevel('l1'),n2=countLevel('l2');
+  document.getElementById('l1Cnt').textContent=n1;
+  document.getElementById('l2Cnt').textContent=n2;
+  document.getElementById('arenaPts').textContent=ARENA.score;
+  lvl2Btn.classList.toggle('pulse',n1===6&&n2<6);
+  lvl1Btn.classList.toggle('pulse',n2===6&&n1<6);
+  const g=document.getElementById('grandBanner');
+  if(n1===6&&n2===6){
+    g.hidden=false;
+    g.innerHTML='🏆 <b>BOTH LEVELS CLEARED — ALL 12 FLAGS!</b><br>That\'s real technique: SQLi, layered crypto, nested files,<br>ASCII math, memory overflow &amp; two-hop OSINT.<br>You are officially a CTF player. 🏴';
+  }else if(countLevel(ARENA.curLvl)===6){
+    g.hidden=false;
+    g.innerHTML=ARENA.curLvl==='l1'
+      ?'🏅 <b>LEVEL 1 CLEARED!</b><br>You\'re ready — switch to 🥈 Level 2 above.<br>Harder techniques, much bigger rewards.'
+      :'🏅 <b>LEVEL 2 CLEARED!</b><br>Impressive — these are real CTF techniques.<br>Replay Level 1 for speed, or reset to run it again.';
+  }else g.hidden=true;
+}
+
+function submitCh(){
+  const lvl=ARENA.curLvl,key=lvl+':'+ARENA.curId,d=ARENA.data[lvl][ARENA.curId];
+  const raw=chIn.value;
+  if(!raw.trim()){
+    chIn.classList.add('err');setTimeout(()=>chIn.classList.remove('err'),600);
+    chIn.focus();return;
+  }
+  chSide.classList.remove('correct','wrong');
+  chVer.className='verdict';
+  chEcho.textContent='$ submit '+raw;
+  if(ARENA.solved[key]){
+    chVer.classList.add('info');
+    chVer.textContent='[i] Already solved ✔ points are banked.';
+    return;
+  }
+  const v=norm(raw),inner=d.flag.slice(5,-1);
+  setTimeout(()=>{
+    if(v===norm(d.flag)){
+      ARENA.solved[key]=true;ARENA.score+=d.pts;
+      chSide.classList.add('correct');
+      chVer.classList.add('ok');
+      chVer.textContent=`[✓] Correct! +${d.pts} points`;
+      burst(chSide);floatPts(chSide,'+'+d.pts+' PTS 🏴');
+      document.querySelector(`.atab[data-id="${ARENA.curId}"]`)?.classList.add('done');
+      updateArenaScore();
+      chIn.value='';
+    }else if(v===norm(inner)){
+      chVer.classList.add('info');
+      chVer.textContent='[!] Right idea! Wrap it as flag{ ... }';
+      chSide.classList.add('wrong');
+      setTimeout(()=>chSide.classList.remove('wrong'),700);
+    }else{
+      chVer.classList.add('no');
+      chVer.textContent='[✗] Wrong flag — keep investigating!';
+      chSide.classList.add('wrong');
+      chIn.value='';
+      setTimeout(()=>{chSide.classList.remove('wrong');chIn.focus()},700);
+    }
+  },300);
+}
+
+/* init arena */
+openCh('l1','web');
+updateArenaScore();
+</script>
+</body>
+</html>
